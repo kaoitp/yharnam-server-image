@@ -1,12 +1,14 @@
 # Yharnam Together server image สำหรับ Unraid
 
+[ไทย](README.md) | [English](README.en.md)
+
 Repo นี้สร้าง image `linux/amd64` จาก [release ของ Yharnam Together](https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases) รวม prerelease โดยใช้ Dockerfile และ protobuf submodule ของ tag นั้น ไม่มีตัวเกมหรือ client อยู่ใน image ตรวจสอบ tag ให้ตรงกับ client ของทุกคนก่อนเล่น ตัวอย่าง `v1.4.0` เป็นเพียงตัวอย่าง ไม่ได้หมายความว่า image รุ่นนั้นพร้อมแล้ว ให้ตรวจผล Actions และ package ก่อนติดตั้ง
 
 ## การ build และเลือกเวอร์ชัน
 
-Actions ตรวจวันละครั้งเวลา 03:23 UTC โดยเลือก release ที่เผยแพร่ล่าสุดตาม `published_at` รวม prerelease ไม่รวม draft จากนั้น checkout tag, ดึง protobuf ตาม commit ที่ระบุ, build และทดสอบว่า server ตอบคำสั่ง admin และสร้าง `link_key.bin` ก่อน push ไป `ghcr.io/kaoitp/yharnam-server:<tag>` ไม่มี `latest` และไม่มีการสั่ง Unraid อัปเดต หากมีหลาย release ระหว่างรอบตรวจ จะเลือกเฉพาะ release ที่เผยแพร่ล่าสุด: รุ่นอื่นสั่งสร้างเองได้ที่ Actions → Build upstream server → Run workflow ใส่ tag ของ release ที่เผยแพร่แล้ว รอผลสำเร็จก่อนใช้งาน
+Actions ตรวจวันละครั้งเวลา 03:23 UTC โดยเลือก release ที่เผยแพร่ล่าสุดตาม `published_at` รวม prerelease ไม่รวม draft จากนั้น checkout tag, ดึง protobuf ตาม commit ที่ระบุ, build และทดสอบว่า server ตอบคำสั่ง admin และสร้าง `link_key.bin` ก่อน push ไป `ghcr.io/kaoitp/yharnam-server:<tag>` พร้อมปรับ `latest` ให้ชี้ไปยัง image ของ release ล่าสุดดังกล่าว แม้เป็น prerelease; การสั่ง build release เก่าด้วยตนเองจะไม่เปลี่ยน `latest` และไม่มีการสั่ง Unraid อัปเดต หากมีหลาย release ระหว่างรอบตรวจ จะเลือกเฉพาะ release ที่เผยแพร่ล่าสุด: รุ่นอื่นสั่งสร้างเองได้ที่ Actions → Build upstream server → Run workflow ใส่ tag ของ release ที่เผยแพร่แล้ว รอผลสำเร็จก่อนใช้งาน
 
-Tag ที่มีอยู่จะถูกข้าม ไม่สร้างทับ; workflow จะหยุดเมื่อ registry ตอบข้อผิดพลาดอื่นนอกจากไม่พบ tag ตรวจ log หากล้มเหลว Package เดิมที่ไม่ได้เชื่อม repo นี้อาจต้องเพิ่มสิทธิ์ Actions ใน package settings ก่อน อย่าให้ workflow ภายนอกเขียน tag เดียวกันพร้อมกัน เพราะ GHCR ไม่ได้ป้องกันการเปลี่ยน tag ตรวจ digest หากต้องการตรึง image ให้แน่นอน upstream อาจแก้ tag หลังเผยแพร่ได้; image ที่สร้างแล้วจะไม่เปลี่ยนตามโดยอัตโนมัติ
+Tag เวอร์ชันที่มีอยู่จะถูกข้าม ไม่สร้างทับ; `latest` เปลี่ยนได้ตาม release ใหม่ จึงควรใช้ tag เวอร์ชันหรือ digest ที่ตรงกับ client เพื่อควบคุมการอัปเดต โดยเฉพาะเมื่อสั่ง pull หรือสร้าง container ใหม่; workflow จะหยุดเมื่อ registry ตอบข้อผิดพลาดอื่นนอกจากไม่พบ tag ตรวจ log หากล้มเหลว Package เดิมที่ไม่ได้เชื่อม repo นี้อาจต้องเพิ่มสิทธิ์ Actions ใน package settings ก่อน อย่าให้ workflow ภายนอกเขียน tag เดียวกันพร้อมกัน เพราะ GHCR ไม่ได้ป้องกันการเปลี่ยน tag ตรวจ digest หากต้องการตรึง image ให้แน่นอน upstream อาจแก้ tag หลังเผยแพร่ได้; image ที่สร้างแล้วจะไม่เปลี่ยนตามโดยอัตโนมัติ
 
 ## สิทธิ์ GHCR
 
@@ -39,3 +41,4 @@ Tag ที่มีอยู่จะถูกข้าม ไม่สร้า
 4. หากต้องย้อนกลับ ให้หยุด container อีกครั้ง เก็บสำเนาข้อมูลปัจจุบันแยกไว้ แล้วกู้ทั้งโฟลเดอร์จาก backup ที่สร้างก่อนอัปเดตและเปลี่ยน tag กลับเป็นรุ่นเดิม จากนั้น `docker compose up -d` การกู้ backup จะทำให้ความคืบหน้าหลัง backup หายไป; การใช้ข้อมูลที่รุ่นใหม่เขียนแล้วกับ server รุ่นเก่าอาจเข้ากันไม่ได้ อย่าแทนที่ `link_key.bin` ด้วยกุญแจใหม่เพราะ client อาจไม่เชื่อถือ server เดิม
 
 การทดสอบใน workflow ตรวจเฉพาะการเริ่ม server ไม่ยืนยัน multiplayer หรือ Unraid จริง
+

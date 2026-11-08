@@ -35,6 +35,7 @@ jobs:
             tag=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
           fi
           [[ "$tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]] || { echo 'No published release or unsupported image tag' >&2; exit 1; }
+          [[ "$tag" != latest ]] || { echo 'Upstream tag latest is reserved' >&2; exit 1; }
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${OWNER,,}/yharnam-server" >> "$GITHUB_OUTPUT"
       - name: Check whether tag already exists in GHCR
@@ -105,7 +106,6 @@ jobs:
           [[ "$ready" == true ]]
           docker exec smoke test -s /data/link_key.bin
       - uses: docker/login-action@v3
-        if: steps.existing.outputs.exists != 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -118,3 +118,18 @@ jobs:
         run: docker push "$IMAGE:$TAG"
 
 
+      - name: Update latest for the newest published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ steps.release.outputs.image }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          newest=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
+          if [[ "$TAG" != "$newest" ]]; then
+            echo "Leaving latest unchanged: $TAG is not the newest published release ($newest)."
+            exit 0
+          fi
+          docker pull "$IMAGE:$TAG"
+          docker tag "$IMAGE:$TAG" "$IMAGE:latest"
+          docker push "$IMAGE:latest"
