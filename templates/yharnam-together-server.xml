@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Container version="2">
   <Name>Yharnam-Together-Server</Name>
-  <Repository>ghcr.io/kaoitp/yharnam-server:v1.4.0</Repository>
-  <Registry>https://github.com/kaoitp/yharnam-server-image/pkgs/container/yharnam-server</Registry>
-  <Network>host</Network>
+  <Repository>ghcr.io/kaoitp/yharnam-server-tailscale:latest</Repository>
+  <Registry>https://github.com/kaoitp/yharnam-server-image/pkgs/container/yharnam-server-tailscale</Registry>
+  <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
   <Support>https://github.com/kaoitp/yharnam-server-image/issues</Support>
   <Project>https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together</Project>
-  <Overview>Yharnam Together dedicated server. Choose an image tag matching every client release. Host network requires UDP 31314 and TCP 31315 and 20443. Data directory must be writable by UID and GID 10001; back up the entire directory including link_key.bin. See the README before installing or updating.</Overview>
+  <Overview>Yharnam Together dedicated server. Enable Use Tailscale in Unraid, use kernel networking and connect through the container Tailscale IP. No host ports are published. Latest can change; pin a release tag matching every client. Data directory must be writable by UID and GID 10001; back up the entire directory including link_key.bin. See the README before installing or updating.</Overview>
   <Category>GameServers:</Category>
   <TemplateURL>https://raw.githubusercontent.com/kaoitp/yharnam-server-image/main/templates/yharnam-together-server.xml</TemplateURL>
+  <TailscaleStateDir>/data/.tailscale_state</TailscaleStateDir>
   <ExtraParams>--restart unless-stopped --stop-timeout 30 --ulimit nofile=65536:65536</ExtraParams>
   <Config Name="Server data" Target="/data" Default="/mnt/user/appdata/yharnam-server" Mode="rw" Description="Worlds, databases, settings and server key. Must be writable by UID:GID 10001:10001." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/yharnam-server</Config>
 </Container>

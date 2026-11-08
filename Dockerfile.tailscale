@@ -1,0 +1,5 @@
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["gosu", "10001:10001", "/usr/bin/tini", "--", "/opt/shadnet/entrypoint.sh"]

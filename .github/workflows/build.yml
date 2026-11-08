@@ -17,6 +17,9 @@ concurrency:
 jobs:
   image:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      image: ${{ steps.release.outputs.image }}
     timeout-minutes: 120
     steps:
       - name: Select published release
@@ -133,3 +136,53 @@ jobs:
           docker pull "$IMAGE:$TAG"
           docker tag "$IMAGE:$TAG" "$IMAGE:latest"
           docker push "$IMAGE:latest"
+
+  tailscale-image:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and test Tailscale-compatible image
+        env:
+          BASE: ${{ needs.image.outputs.image }}
+          TAG: ${{ needs.image.outputs.tag }}
+          OWNER: ${{ github.repository_owner }}
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER,,}/yharnam-server-tailscale"
+          token=$(curl -fsS -u "$ACTOR:$GH_TOKEN" "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER,,}/yharnam-server-tailscale:pull,push" | jq -er .token)
+          echo "::add-mask::$token"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json' "https://ghcr.io/v2/${OWNER,,}/yharnam-server-tailscale/manifests/$TAG")
+          case "$status" in
+            200) docker pull "$image:$TAG" ;;
+            404)
+              docker build --build-arg BASE_IMAGE="$BASE:$TAG" --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -f Dockerfile.tailscale -t "$image:$TAG" .
+              docker run -d --name ts-smoke --network bridge "$image:$TAG"
+              trap 'docker logs ts-smoke; docker rm -fv ts-smoke' EXIT
+              ready=false
+              for i in $(seq 1 30); do
+                if docker exec -u 10001:10001 ts-smoke shadnet --admin stats >/dev/null 2>&1; then ready=true; break; fi
+                sleep 2
+              done
+              [[ "$ready" == true ]]
+              docker exec ts-smoke sh -c 'test "$(id -u)" = 0 && test -s /data/link_key.bin && command -v apt-get && command -v gosu'
+              docker top ts-smoke -eo uid,comm | awk '$1 == "10001" && $2 == "shadnet" { found=1 } END { exit !found }'
+              docker push "$image:$TAG"
+              ;;
+            *) echo "Registry lookup failed: HTTP $status" >&2; exit 1 ;;
+          esac
+          newest=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
+          if [[ "$TAG" = "$newest" ]]; then
+            docker tag "$image:$TAG" "$image:latest"
+            docker push "$image:latest"
+          fi
