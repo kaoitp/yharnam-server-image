@@ -1,0 +1,120 @@
+name: Build upstream server
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published upstream release tag (blank selects most recently published, including prereleases)'
+        type: string
+        required: false
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: server-image
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Select published release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$REQUESTED_TAG" ]]; then
+            [[ "$REQUESTED_TAG" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]] || { echo 'Unsupported image tag' >&2; exit 1; }
+            release=$(gh api "repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases/tags/$REQUESTED_TAG")
+            tag=$(jq -er 'select(.draft == false and .published_at != null) | .tag_name' <<< "$release")
+          else
+            tag=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
+          fi
+          [[ "$tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]] || { echo 'No published release or unsupported image tag' >&2; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${OWNER,,}/yharnam-server" >> "$GITHUB_OUTPUT"
+      - name: Check whether tag already exists in GHCR
+        id: existing
+        env:
+          OWNER: ${{ github.repository_owner }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ACTOR: ${{ github.actor }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          owner=${OWNER,,}
+          token=$(curl -fsS -u "$ACTOR:$GH_TOKEN" "https://ghcr.io/token?service=ghcr.io&scope=repository:$owner/yharnam-server:pull,push" | jq -er .token)
+          echo "::add-mask::$token"
+          status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json' "https://ghcr.io/v2/$owner/yharnam-server/manifests/$TAG")
+          case "$status" in
+            200) echo 'exists=true' >> "$GITHUB_OUTPUT" ;;
+            404) echo 'exists=false' >> "$GITHUB_OUTPUT" ;;
+            *) echo "Registry lookup failed: HTTP $status" >&2; exit 1 ;;
+          esac
+      - name: Checkout upstream release
+        if: steps.existing.outputs.exists != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: Amanises-Yharnam-Together/BBSC-Yharnam-Together
+          ref: refs/tags/${{ steps.release.outputs.tag }}
+          persist-credentials: false
+      - name: Record source and initialize protobuf
+        if: steps.existing.outputs.exists != 'true'
+        id: source
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          git submodule update --init server/externals/protobuf
+          test -f server/externals/protobuf/CMakeLists.txt
+      - uses: docker/setup-buildx-action@v3
+        if: steps.existing.outputs.exists != 'true'
+      - name: Build image locally
+        if: steps.existing.outputs.exists != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/hosting/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: ${{ steps.release.outputs.image }}:${{ steps.release.outputs.tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.version=${{ steps.release.outputs.tag }}
+          cache-from: type=gha,scope=shadnet
+          cache-to: type=gha,mode=max,scope=shadnet
+      - name: Smoke test before publishing
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.release.outputs.image }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke "$IMAGE:$TAG"
+          trap 'docker logs smoke; docker rm -fv smoke' EXIT
+          ready=false
+          for i in $(seq 1 30); do
+            if [[ "$(docker inspect -f '{{.State.Running}}' smoke)" != true ]]; then break; fi
+            if docker exec smoke shadnet --admin stats >/dev/null 2>&1; then ready=true; break; fi
+            sleep 2
+          done
+          [[ "$ready" == true ]]
+          docker exec smoke test -s /data/link_key.bin
+      - uses: docker/login-action@v3
+        if: steps.existing.outputs.exists != 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish tested image
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.release.outputs.image }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: docker push "$IMAGE:$TAG"
+
+

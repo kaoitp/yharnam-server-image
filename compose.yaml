@@ -1,0 +1,12 @@
+services:
+  shadnet:
+    image: ghcr.io/kaoitp/yharnam-server:v1.4.0
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - /mnt/user/appdata/yharnam-server:/data
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
