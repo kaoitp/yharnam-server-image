@@ -177,10 +177,11 @@ jobs:
               [[ "$ready" == true ]]
               docker exec ts-smoke sh -c 'test "$(id -u)" = 0 && test -s /data/link_key.bin && command -v apt-get && command -v gosu'
               docker top ts-smoke -eo pid,uid,comm | awk '$2 == "10001" && $3 == "shadnet" { found=1 } END { exit !found }'
-              docker push "$image:$TAG"
               ;;
             *) echo "Registry lookup failed: HTTP $status" >&2; exit 1 ;;
           esac
+          bash tests/test-unraid-hook.sh "$image:$TAG"
+          if [[ "$status" = 404 ]]; then docker push "$image:$TAG"; fi
           newest=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
           if [[ "$TAG" = "$newest" ]]; then
             docker tag "$image:$TAG" "$image:latest"
