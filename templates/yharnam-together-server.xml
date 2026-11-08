@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Container version="2">
-  <Name>Yharnam-Together-Server</Name>
+  <Name>Yharnam-Together-Tailscale</Name>
   <Repository>ghcr.io/kaoitp/yharnam-server-tailscale:latest</Repository>
   <Registry>https://github.com/kaoitp/yharnam-server-image/pkgs/container/yharnam-server-tailscale</Registry>
   <Network>bridge</Network>

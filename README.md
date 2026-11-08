@@ -23,12 +23,12 @@ Template นี้ยังไม่ได้อยู่ในผลค้น�
 1. เปิด Terminal ใน Unraid แล้วดาวน์โหลด template โดยคำสั่งนี้จะไม่เขียนทับไฟล์ชื่อเดียวกันที่มีอยู่:
 
    ```sh
-   test ! -e /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml && \
+   test ! -e /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Tailscale.xml && \
      curl -fL https://raw.githubusercontent.com/kaoitp/yharnam-server-image/main/templates/yharnam-together-server.xml \
-     -o /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml
+     -o /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Tailscale.xml
    ```
 
-   หากมีไฟล์นี้อยู่แล้ว คำสั่งจะไม่ดาวน์โหลดทับ ให้ตรวจไฟล์เดิมก่อน หาก UI มีช่อง Template repositories สามารถเพิ่ม `https://github.com/kaoitp/yharnam-server-image` แทนได้ แล้วเลือกจากรายการ template
+   หากมีไฟล์นี้อยู่แล้ว คำสั่งจะไม่ดาวน์โหลดทับ ให้ตรวจไฟล์เดิมก่อน หากเคยติดตั้ง template รุ่น host network ให้ดาวน์โหลดไฟล์ชื่อใหม่นี้และเลือก template Tailscale; container เดิมจะไม่เปลี่ยนอัตโนมัติ หาก UI มีช่อง Template repositories สามารถเพิ่ม `https://github.com/kaoitp/yharnam-server-image` แทนได้ แล้วเลือกจากรายการ template
 2. สร้าง **โฟลเดอร์ข้อมูลใหม่** ใน Unraid terminal และให้สิทธิ์ user ของ image เฉพาะโฟลเดอร์นี้ อย่าใช้กับโฟลเดอร์ที่มีข้อมูลอื่น:
 
    ```sh
@@ -42,7 +42,7 @@ Template นี้ยังไม่ได้อยู่ในผลค้น�
    ```
 
    หากมีข้อมูลอยู่แล้ว ให้ตรวจสิทธิ์และสำรองก่อน ไม่สั่ง `chown -R` โดยไม่ตรวจสอบ `/data` เก็บโลก ฐานข้อมูล การตั้งค่า และ `link_key.bin`; ควรใช้ storage ภายในที่เชื่อถือได้
-3. ไปที่ Docker → Add Container → Template แล้วเลือก `Yharnam-Together-Server` (อาจแสดงในกลุ่ม User templates) ตรวจช่อง **Repository** ให้เป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` ที่ build สำเร็จและตรงกับ client ทุกคน ค่าเริ่มต้นเป็น `latest` ตรวจ **Server data** ให้ตรงโฟลเดอร์ที่เตรียมไว้ แล้วกด Apply ตรวจ log จากหน้า Docker หลังเริ่ม แล้วตรวจว่า Tailscale เชื่อมต่อจริง หาก hook ล้มเหลวอาจเริ่ม server โดยไม่มี Tailscale
+3. ไปที่ Docker → Add Container → Template แล้วเลือก `Yharnam-Together-Tailscale` (อาจแสดงในกลุ่ม User templates) ตรวจช่อง **Repository** ให้เป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` ที่ build สำเร็จและตรงกับ client ทุกคน ค่าเริ่มต้นเป็น `latest` ตรวจ **Server data** ให้ตรงโฟลเดอร์ที่เตรียมไว้ แล้วกด Apply ตรวจ log จากหน้า Docker หลังเริ่ม แล้วตรวจว่า Tailscale เชื่อมต่อจริง หาก hook ล้มเหลวอาจเริ่ม server โดยไม่มี Tailscale
 4. ใช้ Unraid 7 หรือใหม่กว่า เปิด **Use Tailscale** ตั้ง hostname ไม่ซ้ำ และใช้ kernel networking (ปิด Tailscale Userspace Networking) จากนั้น Apply และเปิดลิงก์ยืนยันใน log เพื่อเข้าร่วม Tailnet ให้ผู้เล่นใช้ Tailscale และตั้ง IP Tailscale ของ **container** ใน client ไม่ต้องเปิด port บน host; ไม่ต้องเปิด Serve หรือ Funnel. Template ใช้ bridge และไม่ publish port ไปยัง host. ดู [คู่มือ Tailscale ของ Unraid](https://docs.unraid.net/unraid-os/system-administration/secure-your-server/tailscale/)
 
 Template ตั้ง restart policy `unless-stopped` ซึ่งไม่ pull image ใหม่เอง ปิดการอัปเดตอัตโนมัติสำหรับ container นี้ และอย่าใช้ `latest` หากต้องการตรึงรุ่นให้ตรง client เมื่อมีการ pull หรือสร้าง container ใหม่
@@ -51,7 +51,7 @@ Template ตั้ง restart policy `unless-stopped` ซึ่งไม่ pull
 
 ทำหลังทุกคนออกจากเกม:
 
-1. ที่หน้า Docker หยุด `Yharnam-Together-Server` และรอให้หยุดเรียบร้อย เพื่อให้ SQLite และ world journal สอดคล้องกัน
+1. ที่หน้า Docker หยุด `Yharnam-Together-Tailscale` และรอให้หยุดเรียบร้อย เพื่อให้ SQLite และ world journal สอดคล้องกัน
 2. คัดลอก **ทั้งโฟลเดอร์ข้อมูล** `/mnt/user/appdata/yharnam-server` รวมไฟล์ซ่อน สิทธิ์ และ `link_key.bin` ไปยัง backup แยกจาก Unraid เก็บค่า Repository/tag หรือ digest และการตั้งค่า template ไว้ด้วย ป้องกันการเข้าถึง backup เพราะมีข้อมูลบัญชี กุญแจ และสถานะ Tailscale ตรวจและทดลองกู้คืนบนเครื่องแยก
 3. ตรวจว่า Actions สำหรับรุ่นใหม่สำเร็จและ client ทุกคนใช้รุ่นเดียวกัน จากหน้า Docker เลือก Edit ของ container เปลี่ยน tag ใน Repository แล้ว Apply เพื่อดึงและสร้าง container ใหม่โดยใช้ data path เดิม ตรวจ log ก่อนให้ผู้เล่นเข้า
 4. หากย้อนกลับ ให้หยุด container เก็บสำเนาข้อมูลปัจจุบันแยกไว้ แล้วกู้ทั้งโฟลเดอร์จาก backup ก่อนอัปเดต จากนั้น Edit เปลี่ยน Repository กลับเป็น tag เดิมแล้ว Apply การกู้ backup ทำให้ความคืบหน้าหลัง backup หายไป; ข้อมูลที่รุ่นใหม่เขียนแล้วอาจใช้กับรุ่นเก่าไม่ได้ อย่าแทน `link_key.bin` ด้วยกุญแจใหม่ เพราะ client อาจไม่เชื่อถือ server เดิม

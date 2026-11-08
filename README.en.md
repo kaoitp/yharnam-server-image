@@ -25,12 +25,12 @@ This template is not listed in the public Community Apps search yet; import it m
 1. Open the Unraid terminal and download the template. This command does not overwrite an existing file with the same name:
 
    ```sh
-   test ! -e /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml && \
+   test ! -e /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Tailscale.xml && \
      curl -fL https://raw.githubusercontent.com/kaoitp/yharnam-server-image/main/templates/yharnam-together-server.xml \
-     -o /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml
+     -o /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Tailscale.xml
    ```
 
-   If the file exists, inspect it before replacing it. If your UI has a Template repositories field, you can add `https://github.com/kaoitp/yharnam-server-image` instead and select the template from the list.
+   If the file exists, inspect it before replacing it. If you imported the older host-network template, import this new filename and select the Tailscale template; existing containers are not changed automatically. If your UI has a Template repositories field, you can add `https://github.com/kaoitp/yharnam-server-image` instead and select the template from the list.
 2. Create a **new** data directory in the Unraid terminal and grant access to the image user only for this directory. Do not use these commands on a directory containing unrelated data:
 
    ```sh
@@ -44,7 +44,7 @@ This template is not listed in the public Community Apps search yet; import it m
    ```
 
    If data already exists, inspect permissions and back it up first; do not run `chown -R` without checking. `/data` holds worlds, databases, settings and `link_key.bin`; use reliable local storage.
-3. Go to Docker → Add Container → Template and select `Yharnam-Together-Server` (possibly under User templates). Set **Repository** to `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` for a successfully built release matching all clients; the default is `latest`. Check **Server data** points to your prepared directory, then click Apply. Check the container logs and confirm Tailscale actually connects; the hook may start the server without Tailscale if it fails.
+3. Go to Docker → Add Container → Template and select `Yharnam-Together-Tailscale` (possibly under User templates). Set **Repository** to `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` for a successfully built release matching all clients; the default is `latest`. Check **Server data** points to your prepared directory, then click Apply. Check the container logs and confirm Tailscale actually connects; the hook may start the server without Tailscale if it fails.
 4. On Unraid 7 or newer, enable **Use Tailscale**, choose a unique hostname, and use kernel networking (disable Tailscale Userspace Networking). Apply and follow the authentication link in the logs to join your Tailnet. Players need Tailscale and should use the **container** Tailscale IP in the client. The bridge template publishes no host ports; Serve and Funnel are not needed. See [Unraid Tailscale documentation](https://docs.unraid.net/unraid-os/system-administration/secure-your-server/tailscale/).
 
 The template uses the `unless-stopped` restart policy, which does not pull new images. Exclude this container from automatic updates. Avoid `latest` if you need the release pinned to your clients when pulling or recreating the container.
@@ -53,7 +53,7 @@ The template uses the `unless-stopped` restart policy, which does not pull new i
 
 Do this after everyone has left the game:
 
-1. Stop `Yharnam-Together-Server` on the Docker page and wait for a clean stop, so SQLite and world journals are consistent.
+1. Stop `Yharnam-Together-Tailscale` on the Docker page and wait for a clean stop, so SQLite and world journals are consistent.
 2. Copy the **entire data directory** `/mnt/user/appdata/yharnam-server`, including hidden files, permissions and `link_key.bin`, to a backup separate from Unraid. Save the Repository tag or digest and template settings too. Protect the backup because it contains account data, the server key, and Tailscale state. Verify it and test restoration on a separate machine.
 3. Confirm the new release's Actions run succeeded and all clients match it. On the Docker page choose Edit for the container, change the Repository tag and click Apply to pull and recreate the container using the same data path. Check logs before players join.
 4. To roll back, stop the container, save a separate copy of current data, restore the entire pre-update backup, then Edit the Repository back to the old tag and Apply. Restoring loses progress made after the backup; data written by a newer server may not work with the older one. Do not replace `link_key.bin` with a new key: clients may no longer trust the server.
