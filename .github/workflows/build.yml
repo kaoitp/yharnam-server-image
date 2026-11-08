@@ -176,7 +176,7 @@ jobs:
               done
               [[ "$ready" == true ]]
               docker exec ts-smoke sh -c 'test "$(id -u)" = 0 && test -s /data/link_key.bin && command -v apt-get && command -v gosu'
-              docker top ts-smoke -eo uid,comm | awk '$1 == "10001" && $2 == "shadnet" { found=1 } END { exit !found }'
+              docker top ts-smoke -eo pid,uid,comm | awk '$2 == "10001" && $3 == "shadnet" { found=1 } END { exit !found }'
               docker push "$image:$TAG"
               ;;
             *) echo "Registry lookup failed: HTTP $status" >&2; exit 1 ;;

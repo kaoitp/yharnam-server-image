@@ -1,5 +1,5 @@
-ARG BASE_IMAGE
+ARG BASE_IMAGE=ghcr.io/kaoitp/yharnam-server:v1.4.0
 FROM ${BASE_IMAGE}
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gosu jq wget ca-certificates && rm -rf /var/lib/apt/lists/*
 ENTRYPOINT ["gosu", "10001:10001", "/usr/bin/tini", "--", "/opt/shadnet/entrypoint.sh"]
