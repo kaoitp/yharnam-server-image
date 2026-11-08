@@ -2,7 +2,7 @@
 
 [ไทย](README.md) | [English](README.en.md)
 
-Repo นี้สร้าง image `linux/amd64` จาก [release ของ Yharnam Together](https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases) รวม prerelease โดยใช้ Dockerfile และ protobuf submodule ของ tag นั้น ไม่มีตัวเกมหรือ client อยู่ใน image ตรวจสอบ tag ให้ตรงกับ client ของทุกคนก่อนเล่น ตัวอย่าง `v1.4.0` เป็นเพียงตัวอย่าง ไม่ได้หมายความว่า image รุ่นนั้นพร้อมแล้ว ให้ตรวจผล Actions และ package ก่อนติดตั้ง
+Repo นี้สร้าง image `linux/amd64` จาก [release ของ Yharnam Together](https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases) รวม prerelease โดยใช้ Dockerfile และ protobuf submodule ของ tag นั้น ไม่มีตัวเกมหรือ client อยู่ใน image ตรวจสอบ tag ให้ตรงกับ client ของทุกคนก่อนเล่น ค่าเริ่มต้น `v1.4.0` เป็นเพียงตัวอย่าง ไม่ได้หมายความว่า image รุ่นนั้นพร้อมแล้ว ให้ตรวจผล Actions และ package ก่อนติดตั้ง
 
 ## การ build และเลือกเวอร์ชัน
 
@@ -14,31 +14,44 @@ Tag เวอร์ชันที่มีอยู่จะถูกข้า�
 
 หลัง push ครั้งแรกเปิด GitHub → โปรไฟล์ `kaoitp` → Packages → `yharnam-server` → Package settings → Change visibility → Public หากต้องการให้ Unraid pull โดยไม่ล็อกอิน (public เปิดให้ทุกคนอ่าน image ได้) หรือคง Private และล็อกอิน GHCR บน Unraid ด้วยบัญชีที่มีสิทธิ์อ่านและ classic PAT ที่มี `read:packages` ผ่าน `docker login ghcr.io` โดยป้อน token แบบโต้ตอบ ไม่ใส่ใน compose หรือแชต ดู [คู่มือ GitHub](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility) หาก push ไม่ผ่านให้ตรวจ Settings → Actions → General → Workflow permissions และ Package settings → Manage Actions access ว่า repo นี้เขียน package ได้ GitHub อาจจำกัดการเปลี่ยน visibility กลับหลังเผยแพร่
 
-## ติดตั้งบน Unraid
+## ติดตั้งบน Unraid ด้วย Docker template
 
-1. ต้องมี Docker และ Compose บน Unraid แบบ x86-64; ตรวจ tag ที่ build สำเร็จและตรงกับ client ทุกเครื่อง คัดลอก `compose.yaml` ไปโฟลเดอร์สำหรับโครงการ เช่น `/boot/config/yharnam-server` แล้วแก้ `image:` ให้ตรง tag ที่ต้องการ
-2. ใน Unraid terminal สร้างโฟลเดอร์ข้อมูลใหม่และให้สิทธิ์ user ของ image (10001:10001) เฉพาะโฟลเดอร์นี้ อย่าใช้คำสั่งเปลี่ยนเจ้าของกับโฟลเดอร์ที่มีข้อมูลอื่น:
+Template นี้ยังไม่ได้อยู่ในผลค้นหา Community Apps ทั่วไป ต้องนำเข้าเองก่อน ใช้ได้โดยไม่ต้องติดตั้ง Compose บน Unraid x86-64 ที่เปิดใช้งาน Docker:
+
+1. เปิด Terminal ใน Unraid แล้วดาวน์โหลด template โดยคำสั่งนี้จะไม่เขียนทับไฟล์ชื่อเดียวกันที่มีอยู่:
 
    ```sh
-   mkdir -p /mnt/user/appdata/yharnam-server
-   chown 10001:10001 /mnt/user/appdata/yharnam-server
-   chmod 750 /mnt/user/appdata/yharnam-server
+   test ! -e /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml && \
+     curl -fL https://raw.githubusercontent.com/kaoitp/yharnam-server-image/main/templates/yharnam-together-server.xml \
+     -o /boot/config/plugins/dockerMan/templates-user/my-Yharnam-Together-Server.xml
    ```
 
-   หากโฟลเดอร์มีข้อมูลอยู่แล้ว ให้ตรวจสิทธิ์และสำรองข้อมูลก่อน ไม่สั่ง `chown -R` โดยไม่ตรวจสอบ `/data` เก็บฐานข้อมูล โลก การตั้งค่า และ `link_key.bin`; ควรอยู่บน storage ภายในที่เชื่อถือได้
-3. จากโฟลเดอร์ที่มี compose รัน `docker compose pull` แล้ว `docker compose up -d` ตรวจ `docker compose logs -f shadnet` และ `docker compose ps` ยุติการดู log ด้วย Ctrl+C คำสั่งเหล่านี้ควบคุม instance นี้เท่านั้น
-4. ใช้ host network ตรวจว่าไม่มีบริการอื่นใช้ UDP 31314, TCP 31315 และ 20443 และอนุญาตเฉพาะผู้เล่นที่เชื่อถือได้ผ่าน firewall/VPN ตามความจำเป็น TCP 31313 และ stats 31320 ไม่ควรเปิดสาธารณะ พอร์ต 31315 และ 20443 เป็น HTTP แบบไม่เข้ารหัส ดู [hosting upstream](https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together/blob/v1.4.0/server/hosting/README.md) สำหรับรายละเอียด จากนั้นตั้ง IP ของ Unraid ใน client
+   หากมีไฟล์นี้อยู่แล้ว คำสั่งจะไม่ดาวน์โหลดทับ ให้ตรวจไฟล์เดิมก่อน หาก UI มีช่อง Template repositories สามารถเพิ่ม `https://github.com/kaoitp/yharnam-server-image` แทนได้ แล้วเลือกจากรายการ template
+2. สร้าง **โฟลเดอร์ข้อมูลใหม่** ใน Unraid terminal และให้สิทธิ์ user ของ image เฉพาะโฟลเดอร์นี้ อย่าใช้กับโฟลเดอร์ที่มีข้อมูลอื่น:
 
-`restart: unless-stopped` เริ่ม container เดิมใหม่หลังรีบูต แต่ไม่ pull image ใหม่ หลีกเลี่ยงเครื่องมือ auto-update สำหรับ container นี้
+   ```sh
+   if [ -e /mnt/user/appdata/yharnam-server ]; then
+     echo 'Directory exists; inspect and back up before changing permissions.'
+   else
+     mkdir -p /mnt/user/appdata/yharnam-server && \
+       chown 10001:10001 /mnt/user/appdata/yharnam-server && \
+       chmod 750 /mnt/user/appdata/yharnam-server
+   fi
+   ```
+
+   หากมีข้อมูลอยู่แล้ว ให้ตรวจสิทธิ์และสำรองก่อน ไม่สั่ง `chown -R` โดยไม่ตรวจสอบ `/data` เก็บโลก ฐานข้อมูล การตั้งค่า และ `link_key.bin`; ควรใช้ storage ภายในที่เชื่อถือได้
+3. ไปที่ Docker → Add Container → Template แล้วเลือก `Yharnam-Together-Server` (อาจแสดงในกลุ่ม User templates) ตรวจช่อง **Repository** ให้เป็น `ghcr.io/kaoitp/yharnam-server:<tag>` ที่ build สำเร็จและตรงกับ client ทุกคน ค่าเริ่มต้น `v1.4.0` เป็นตัวอย่าง ตรวจ **Server data** ให้ตรงโฟลเดอร์ที่เตรียมไว้ แล้วกด Apply ตรวจ log จากหน้า Docker หลังเริ่ม
+4. Template ใช้ host network ตรวจว่าไม่มีบริการอื่นใช้ UDP 31314, TCP 31315 และ 20443 จำกัด firewall/VPN ให้ผู้เล่นที่เชื่อถือได้ TCP 31313 และ stats 31320 ไม่ควรเปิดสาธารณะ; TCP 31315 และ 20443 เป็น HTTP ไม่เข้ารหัส ดู [hosting upstream](https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together/blob/v1.4.0/server/hosting/README.md) แล้วตั้ง IP ของ Unraid ใน client
+
+Template ตั้ง restart policy `unless-stopped` ซึ่งไม่ pull image ใหม่เอง ปิดการอัปเดตอัตโนมัติสำหรับ container นี้ และอย่าใช้ `latest` หากต้องการตรึงรุ่นให้ตรง client เมื่อมีการ pull หรือสร้าง container ใหม่
 
 ## สำรอง อัปเดต และย้อนกลับ
 
-ทำเมื่อทุกคนออกจากเกมแล้วเท่านั้น:
+ทำหลังทุกคนออกจากเกม:
 
-1. ในโฟลเดอร์ compose รัน `docker compose stop` รอให้หยุดเรียบร้อย เพื่อให้ SQLite และ world journal อยู่ในสถานะสอดคล้อง
-2. คัดลอก **ทั้งโฟลเดอร์** `/mnt/user/appdata/yharnam-server` รวมไฟล์ซ่อน สิทธิ์ และ `link_key.bin` ไปที่ backup แยกจาก Unraid พร้อมเก็บสำเนา `compose.yaml` และ tag/digest เดิมไว้ ป้องกันการเข้าถึง backup เพราะมีข้อมูลบัญชีและกุญแจของ server ตรวจว่าสำรองเสร็จและทดสอบกู้คืนบนเครื่องแยกก่อนพึ่งพา backup
-3. แก้ tag ใน `compose.yaml` ให้ตรง client รุ่นใหม่ ตรวจว่า Actions สำหรับ tag นั้นสำเร็จ แล้วรัน `docker compose pull` และ `docker compose up -d` ตรวจ log ก่อนให้ผู้เล่นเข้า
-4. หากต้องย้อนกลับ ให้หยุด container อีกครั้ง เก็บสำเนาข้อมูลปัจจุบันแยกไว้ แล้วกู้ทั้งโฟลเดอร์จาก backup ที่สร้างก่อนอัปเดตและเปลี่ยน tag กลับเป็นรุ่นเดิม จากนั้น `docker compose up -d` การกู้ backup จะทำให้ความคืบหน้าหลัง backup หายไป; การใช้ข้อมูลที่รุ่นใหม่เขียนแล้วกับ server รุ่นเก่าอาจเข้ากันไม่ได้ อย่าแทนที่ `link_key.bin` ด้วยกุญแจใหม่เพราะ client อาจไม่เชื่อถือ server เดิม
+1. ที่หน้า Docker หยุด `Yharnam-Together-Server` และรอให้หยุดเรียบร้อย เพื่อให้ SQLite และ world journal สอดคล้องกัน
+2. คัดลอก **ทั้งโฟลเดอร์ข้อมูล** `/mnt/user/appdata/yharnam-server` รวมไฟล์ซ่อน สิทธิ์ และ `link_key.bin` ไปยัง backup แยกจาก Unraid เก็บค่า Repository/tag หรือ digest และการตั้งค่า template ไว้ด้วย ป้องกันการเข้าถึง backup เพราะมีข้อมูลบัญชีและกุญแจ ตรวจและทดลองกู้คืนบนเครื่องแยก
+3. ตรวจว่า Actions สำหรับรุ่นใหม่สำเร็จและ client ทุกคนใช้รุ่นเดียวกัน จากหน้า Docker เลือก Edit ของ container เปลี่ยน tag ใน Repository แล้ว Apply เพื่อดึงและสร้าง container ใหม่โดยใช้ data path เดิม ตรวจ log ก่อนให้ผู้เล่นเข้า
+4. หากย้อนกลับ ให้หยุด container เก็บสำเนาข้อมูลปัจจุบันแยกไว้ แล้วกู้ทั้งโฟลเดอร์จาก backup ก่อนอัปเดต จากนั้น Edit เปลี่ยน Repository กลับเป็น tag เดิมแล้ว Apply การกู้ backup ทำให้ความคืบหน้าหลัง backup หายไป; ข้อมูลที่รุ่นใหม่เขียนแล้วอาจใช้กับรุ่นเก่าไม่ได้ อย่าแทน `link_key.bin` ด้วยกุญแจใหม่ เพราะ client อาจไม่เชื่อถือ server เดิม
 
 การทดสอบใน workflow ตรวจเฉพาะการเริ่ม server ไม่ยืนยัน multiplayer หรือ Unraid จริง
-
