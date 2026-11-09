@@ -2,9 +2,28 @@
 set -euo pipefail
 image=$1
 work=$(mktemp -d)
-cleanup() { docker logs hook-smoke || true; docker rm -fv hook-smoke >/dev/null 2>&1 || true; rm -rf "$work"; }
+cleanup() { docker logs hook-smoke || true; docker logs hook-real || true; docker rm -fv hook-smoke hook-real >/dev/null 2>&1 || true; rm -rf "$work"; }
 trap cleanup EXIT
 curl -fsSL https://raw.githubusercontent.com/unraid/webgui/master/share/docker/tailscale_container_hook -o "$work/hook"
+# Exercise the real hook and bundled daemon without joining a tailnet.
+chmod 755 "$work" "$work/hook"
+docker run --rm --entrypoint /usr/bin/tailscale "$image" version
+docker run --rm --entrypoint /usr/bin/tailscaled "$image" --version
+docker run -d --name hook-real --network bridge --entrypoint /bin/sh \
+  -v "$work/hook:/opt/unraid/tailscale:ro" \
+  -e TAILSCALE_USERSPACE_NETWORKING=true -e TAILSCALE_STATE_DIR=/data/.tailscale_state \
+  -e TAILSCALE_PARAMS=--timeout=30s \
+  -e 'ORG_ENTRYPOINT=gosu 10001:10001 /usr/bin/tini -- /opt/shadnet/entrypoint.sh' \
+  "$image" /opt/unraid/tailscale
+ready=false
+for i in $(seq 1 30); do
+  if docker exec hook-real test -S /var/run/tailscale/tailscaled.sock 2>/dev/null; then ready=true; break; fi
+  sleep 2
+done
+[[ "$ready" == true ]]
+docker logs hook-real 2>&1 | grep -q 'Tailscale found, continuing'
+! docker logs hook-real 2>&1 | grep -q 'Tailscale not found, downloading'
+docker rm -fv hook-real >/dev/null
 cat > "$work/tailscale" <<'MOCK'
 #!/bin/sh
 if [ "$1" = status ]; then echo '{"Self":{"Online":true,"KeyExpiry":null}}'; fi

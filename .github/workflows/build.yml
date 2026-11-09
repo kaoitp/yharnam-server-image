@@ -160,13 +160,15 @@ jobs:
         run: |
           set -euo pipefail
           image="ghcr.io/${OWNER,,}/yharnam-server-tailscale"
+          base_tag=$TAG
+          TAG="${TAG}-ts2"
           token=$(curl -fsS -u "$ACTOR:$GH_TOKEN" "https://ghcr.io/token?service=ghcr.io&scope=repository:${OWNER,,}/yharnam-server-tailscale:pull,push" | jq -er .token)
           echo "::add-mask::$token"
           status=$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json' "https://ghcr.io/v2/${OWNER,,}/yharnam-server-tailscale/manifests/$TAG")
           case "$status" in
             200) docker pull "$image:$TAG" ;;
             404)
-              docker build --build-arg BASE_IMAGE="$BASE:$TAG" --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -f Dockerfile.tailscale -t "$image:$TAG" .
+              docker build --build-arg BASE_IMAGE="$BASE:$base_tag" --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -f Dockerfile.tailscale -t "$image:$TAG" .
               docker run -d --name ts-smoke --network bridge "$image:$TAG"
               trap 'docker logs ts-smoke; docker rm -fv ts-smoke' EXIT
               ready=false
@@ -183,7 +185,7 @@ jobs:
           bash tests/test-unraid-hook.sh "$image:$TAG"
           if [[ "$status" = 404 ]]; then docker push "$image:$TAG"; fi
           newest=$(gh api --paginate --slurp 'repos/Amanises-Yharnam-Together/BBSC-Yharnam-Together/releases?per_page=100' | jq -er '[.[][] | select(.draft == false and .published_at != null)] | sort_by(.published_at) | last | .tag_name')
-          if [[ "$TAG" = "$newest" ]]; then
+          if [[ "$base_tag" = "$newest" ]]; then
             docker tag "$image:$TAG" "$image:latest"
             docker push "$image:latest"
           fi
