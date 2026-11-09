@@ -1,10 +1,11 @@
 ARG BASE_IMAGE=ghcr.io/kaoitp/yharnam-server:v1.4.0
+FROM ubuntu:24.04 AS tailscale-download
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates \
+    && wget -O /tmp/tailscale.tgz https://pkgs.tailscale.com/stable/tailscale_1.104.5_amd64.tgz \
+    && echo '720cbbccbfc03d8b55df72afc19e5a72e31b0f65934700aa6fa38074d4ad7bf7  /tmp/tailscale.tgz' | sha256sum -c - \
+    && tar -xzf /tmp/tailscale.tgz -C /tmp
 FROM ${BASE_IMAGE}
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends gosu jq wget ca-certificates && rm -rf /var/lib/apt/lists/* \
-    && wget -q -O /tmp/tailscale.tgz https://pkgs.tailscale.com/stable/tailscale_1.104.5_amd64.tgz \
-    && echo '720cbbccbfc03d8b55df72afc19e5a72e31b0f65934700aa6fa38074d4ad7bf7  /tmp/tailscale.tgz' | sha256sum -c - \
-    && tar -xzf /tmp/tailscale.tgz -C /tmp \
-    && install -m 0755 /tmp/tailscale_1.104.5_amd64/tailscale /tmp/tailscale_1.104.5_amd64/tailscaled /usr/bin/ \
-    && rm -rf /tmp/tailscale.tgz /tmp/tailscale_1.104.5_amd64
+RUN apt-get update && apt-get install -y --no-install-recommends gosu jq wget ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=tailscale-download /tmp/tailscale_1.104.5_amd64/tailscale /tmp/tailscale_1.104.5_amd64/tailscaled /usr/bin/
 ENTRYPOINT ["gosu", "10001:10001", "/usr/bin/tini", "--", "/opt/shadnet/entrypoint.sh"]
