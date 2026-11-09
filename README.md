@@ -10,7 +10,7 @@ Actions ตรวจวันละครั้งเวลา 03:23 UTC โด�
 
 Tag เวอร์ชันที่มีอยู่จะถูกข้าม ไม่สร้างทับ; `latest` เปลี่ยนได้ตาม release ใหม่ จึงควรใช้ tag เวอร์ชันหรือ digest ที่ตรงกับ client เพื่อควบคุมการอัปเดต โดยเฉพาะเมื่อสั่ง pull หรือสร้าง container ใหม่; workflow จะหยุดเมื่อ registry ตอบข้อผิดพลาดอื่นนอกจากไม่พบ tag ตรวจ log หากล้มเหลว Package เดิมที่ไม่ได้เชื่อม repo นี้อาจต้องเพิ่มสิทธิ์ Actions ใน package settings ก่อน อย่าให้ workflow ภายนอกเขียน tag เดียวกันพร้อมกัน เพราะ GHCR ไม่ได้ป้องกันการเปลี่ยน tag ตรวจ digest หากต้องการตรึง image ให้แน่นอน upstream อาจแก้ tag หลังเผยแพร่ได้; image ที่สร้างแล้วจะไม่เปลี่ยนตามโดยอัตโนมัติ
 
-Image สำหรับ Unraid แยกเป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` ซึ่งสร้างจาก image เวอร์ชันเดียวกัน โดยให้ hook เริ่มด้วย root แล้วใช้ gosu ลดสิทธิ์ server เป็น UID 10001 ก่อนเริ่ม; Tailscale daemon ยังคงต้องใช้สิทธิ์สำหรับจัดการเครือข่าย ตรวจผล job `tailscale-image` ก่อนใช้งาน
+Image สำหรับ Unraid แยกเป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>-ts2` ซึ่งสร้างจาก image เวอร์ชันเดียวกัน (เช่น client `v1.4.0` ใช้ `v1.4.0-ts2`) โดยให้ hook เริ่มด้วย root แล้วใช้ gosu ลดสิทธิ์ server เป็น UID 10001 ก่อนเริ่ม; Tailscale daemon ยังคงต้องใช้สิทธิ์สำหรับจัดการเครือข่าย บรรจุ Tailscale 1.104.5 พร้อมตรวจ checksum ตอน build เพื่อลดการดาวน์โหลดขณะเริ่ม container; รุ่น Tailscale นี้จะไม่อัปเดตเอง ต้องมี image รุ่นใหม่ ตรวจผล job `tailscale-image` ก่อนใช้งาน
 
 ## สิทธิ์ GHCR
 
@@ -42,7 +42,7 @@ Template นี้ยังไม่ได้อยู่ในผลค้น�
    ```
 
    หากมีข้อมูลอยู่แล้ว ให้ตรวจสิทธิ์และสำรองก่อน ไม่สั่ง `chown -R` โดยไม่ตรวจสอบ `/data` เก็บโลก ฐานข้อมูล การตั้งค่า และ `link_key.bin`; ควรใช้ storage ภายในที่เชื่อถือได้
-3. ไปที่ Docker → Add Container → Template แล้วเลือก `Yharnam-Together-Tailscale` (อาจแสดงในกลุ่ม User templates) ตรวจช่อง **Repository** ให้เป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` ที่ build สำเร็จและตรงกับ client ทุกคน ค่าเริ่มต้นเป็น `latest` ตรวจ **Server data** ให้ตรงโฟลเดอร์ที่เตรียมไว้ แล้วกด Apply ตรวจ log จากหน้า Docker หลังเริ่ม แล้วตรวจว่า Tailscale เชื่อมต่อจริง หาก hook ล้มเหลวอาจเริ่ม server โดยไม่มี Tailscale
+3. ไปที่ Docker → Add Container → Template แล้วเลือก `Yharnam-Together-Tailscale` (อาจแสดงในกลุ่ม User templates) ตรวจช่อง **Repository** ให้เป็น `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>-ts2` ที่ build สำเร็จและตรงกับ client ทุกคน ค่าเริ่มต้นเป็น `latest` ตรวจ **Server data** ให้ตรงโฟลเดอร์ที่เตรียมไว้ แล้วกด Apply ตรวจ log จากหน้า Docker หลังเริ่ม แล้วตรวจว่า Tailscale เชื่อมต่อจริง หาก hook ล้มเหลวอาจเริ่ม server โดยไม่มี Tailscale
 4. ใช้ Unraid 7 หรือใหม่กว่า เปิด **Use Tailscale** ตั้ง hostname ไม่ซ้ำ และใช้ kernel networking (ปิด Tailscale Userspace Networking) จากนั้น Apply และเปิดลิงก์ยืนยันใน log เพื่อเข้าร่วม Tailnet ให้ผู้เล่นใช้ Tailscale และตั้ง IP Tailscale ของ **container** ใน client ไม่ต้องเปิด port บน host; ไม่ต้องเปิด Serve หรือ Funnel. Template ใช้ bridge และไม่ publish port ไปยัง host. ดู [คู่มือ Tailscale ของ Unraid](https://docs.unraid.net/unraid-os/system-administration/secure-your-server/tailscale/)
 
 Template ตั้ง restart policy `unless-stopped` ซึ่งไม่ pull image ใหม่เอง ปิดการอัปเดตอัตโนมัติสำหรับ container นี้ และอย่าใช้ `latest` หากต้องการตรึงรุ่นให้ตรง client เมื่อมีการ pull หรือสร้าง container ใหม่
@@ -56,4 +56,6 @@ Template ตั้ง restart policy `unless-stopped` ซึ่งไม่ pull
 3. ตรวจว่า Actions สำหรับรุ่นใหม่สำเร็จและ client ทุกคนใช้รุ่นเดียวกัน จากหน้า Docker เลือก Edit ของ container เปลี่ยน tag ใน Repository แล้ว Apply เพื่อดึงและสร้าง container ใหม่โดยใช้ data path เดิม ตรวจ log ก่อนให้ผู้เล่นเข้า
 4. หากย้อนกลับ ให้หยุด container เก็บสำเนาข้อมูลปัจจุบันแยกไว้ แล้วกู้ทั้งโฟลเดอร์จาก backup ก่อนอัปเดต จากนั้น Edit เปลี่ยน Repository กลับเป็น tag เดิมแล้ว Apply การกู้ backup ทำให้ความคืบหน้าหลัง backup หายไป; ข้อมูลที่รุ่นใหม่เขียนแล้วอาจใช้กับรุ่นเก่าไม่ได้ อย่าแทน `link_key.bin` ด้วยกุญแจใหม่ เพราะ client อาจไม่เชื่อถือ server เดิม
 
-การทดสอบใน workflow ตรวจการเริ่ม server และสิทธิ์ผู้ใช้ ไม่ยืนยันการเชื่อม Tailnet, hook บน Unraid, UDP multiplayer หรือ Unraid จริง
+หาก log แจ้ง `Can't get Tailscale JSON` ให้ตรวจว่าใช้ image รุ่น `-ts2` หรือ `latest` ที่ pull ใหม่แล้ว: รุ่นนี้บรรจุ Tailscale ไว้ใน image และ hook ควรแสดง `Tailscale found, continuing` จากนั้นตรวจการยืนยัน Tailnet ใน log ห้ามส่ง auth key หรือข้อมูลสถานะ Tailscale ให้ผู้อื่น
+
+การทดสอบใน workflow ใช้ hook และ daemon จริงแบบ userspace โดยไม่เข้าร่วม Tailnet และจำลองการส่งต่อไปยัง server; ยังไม่ยืนยัน kernel networking, การเชื่อม Tailnet, UDP multiplayer หรือ Unraid จริง

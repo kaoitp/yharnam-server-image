@@ -12,7 +12,7 @@ If several releases appear between checks, only the most recently published is s
 
 Registry errors other than a missing tag stop the workflow; check its log on failure. A pre-existing package not linked to this repository may require Actions access in its package settings. GHCR does not prevent another workflow from changing a tag concurrently. Use a digest for an exact image. Upstream can move a release tag; an already published version image is not automatically rebuilt.
 
-The separate `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` image is built from the matching version image. Its hook starts as root and gosu drops the server to UID 10001; the Tailscale daemon retains the privileges needed to manage networking. Check the `tailscale-image` job before use.
+The separate `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>-ts2` image (for example, client `v1.4.0` uses `v1.4.0-ts2`) is built from the matching version image. Its hook starts as root and gosu drops the server to UID 10001; the Tailscale daemon retains the privileges needed to manage networking. Tailscale 1.104.5 is bundled with a build-time checksum check to avoid downloading it at container startup; it does not update itself and needs a new image for updates. Check the `tailscale-image` job before use.
 
 ## GHCR access
 
@@ -44,7 +44,7 @@ This template is not listed in the public Community Apps search yet; import it m
    ```
 
    If data already exists, inspect permissions and back it up first; do not run `chown -R` without checking. `/data` holds worlds, databases, settings and `link_key.bin`; use reliable local storage.
-3. Go to Docker → Add Container → Template and select `Yharnam-Together-Tailscale` (possibly under User templates). Set **Repository** to `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>` for a successfully built release matching all clients; the default is `latest`. Check **Server data** points to your prepared directory, then click Apply. Check the container logs and confirm Tailscale actually connects; the hook may start the server without Tailscale if it fails.
+3. Go to Docker → Add Container → Template and select `Yharnam-Together-Tailscale` (possibly under User templates). Set **Repository** to `ghcr.io/kaoitp/yharnam-server-tailscale:<tag>-ts2` for a successfully built release matching all clients; the default is `latest`. Check **Server data** points to your prepared directory, then click Apply. Check the container logs and confirm Tailscale actually connects; the hook may start the server without Tailscale if it fails.
 4. On Unraid 7 or newer, enable **Use Tailscale**, choose a unique hostname, and use kernel networking (disable Tailscale Userspace Networking). Apply and follow the authentication link in the logs to join your Tailnet. Players need Tailscale and should use the **container** Tailscale IP in the client. The bridge template publishes no host ports; Serve and Funnel are not needed. See [Unraid Tailscale documentation](https://docs.unraid.net/unraid-os/system-administration/secure-your-server/tailscale/).
 
 The template uses the `unless-stopped` restart policy, which does not pull new images. Exclude this container from automatic updates. Avoid `latest` if you need the release pinned to your clients when pulling or recreating the container.
@@ -58,4 +58,6 @@ Do this after everyone has left the game:
 3. Confirm the new release's Actions run succeeded and all clients match it. On the Docker page choose Edit for the container, change the Repository tag and click Apply to pull and recreate the container using the same data path. Check logs before players join.
 4. To roll back, stop the container, save a separate copy of current data, restore the entire pre-update backup, then Edit the Repository back to the old tag and Apply. Restoring loses progress made after the backup; data written by a newer server may not work with the older one. Do not replace `link_key.bin` with a new key: clients may no longer trust the server.
 
-The workflow tests server startup and its user privileges; it does not verify joining a Tailnet, the hook on Unraid, UDP multiplayer, or actual Unraid operation.
+If the logs show `Can't get Tailscale JSON`, check that you pulled a new `-ts2` image or the current `latest`. The bundled image should cause the hook to say `Tailscale found, continuing`. Then check the logs for Tailnet authentication; never share auth keys or Tailscale state.
+
+The workflow tests the real hook and daemon in userspace without joining a Tailnet and simulates the handoff to the server. It does not verify kernel networking, joining a Tailnet, UDP multiplayer, or actual Unraid operation.
