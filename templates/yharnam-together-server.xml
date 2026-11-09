@@ -9,7 +9,7 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/kaoitp/yharnam-server-image/issues</Support>
   <Project>https://github.com/Amanises-Yharnam-Together/BBSC-Yharnam-Together</Project>
-  <Overview>Yharnam Together dedicated server. Enable Use Tailscale in Unraid, use kernel networking and connect through the container Tailscale IP. No host ports are published. Latest can change; pin the matching release tag with -ts2 suffix. Data directory must be writable by UID and GID 10001; back up the entire directory including link_key.bin. See the README before installing or updating.</Overview>
+  <Overview>Yharnam Together dedicated server. Enable Use Tailscale in Unraid, use kernel networking and connect through the container Tailscale IP. No host ports are published. Latest can change; pin the matching release tag with -ts3 suffix. Data directory must be writable by UID and GID 10001; back up the entire directory including link_key.bin. See the README before installing or updating.</Overview>
   <Category>GameServers:</Category>
   <TemplateURL>https://raw.githubusercontent.com/kaoitp/yharnam-server-image/main/templates/yharnam-together-server.xml</TemplateURL>
   <TailscaleStateDir>/data/.tailscale_state</TailscaleStateDir>
